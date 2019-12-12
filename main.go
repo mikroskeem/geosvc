@@ -95,8 +95,10 @@ func main() {
 	})
 
 	srv := &http.Server{
-		Handler: handler,
-		Addr:    "127.0.0.1:5000",
+		Handler:      handler,
+		Addr:         "127.0.0.1:5000",
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
 	}
 
 	go func() {
