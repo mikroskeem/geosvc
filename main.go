@@ -13,7 +13,7 @@ import (
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
-	geoip2 "github.com/oschwald/geoip2-golang"
+	maxminddb "github.com/oschwald/maxminddb-golang"
 )
 
 const (
@@ -29,7 +29,7 @@ var (
 )
 
 type GeoIPDatabase struct {
-	db    *geoip2.Reader
+	db    *maxminddb.Reader
 	cache *lru.ARCCache
 	mtx   sync.RWMutex
 }
@@ -51,7 +51,7 @@ func (g *GeoIPDatabase) CheckAndPullUpdate() error {
 
 	// TODO! actually pull updte
 	if g.db == nil {
-		db, err := geoip2.Open("./GeoLite2-Country.mmdb")
+		db, err := maxminddb.Open("./GeoLite2-Country.mmdb")
 		if err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func (g *GeoIPDatabase) CheckAndPullUpdate() error {
 	return nil
 }
 
-func (g *GeoIPDatabase) GetCountry(IP net.IP) (*geoip2.Country, error) {
+func (g *GeoIPDatabase) GetCountryISOCode(IP net.IP) (*string, error) {
 	g.mtx.RLock()
 	defer g.mtx.RUnlock()
 
@@ -71,15 +71,21 @@ func (g *GeoIPDatabase) GetCountry(IP net.IP) (*geoip2.Country, error) {
 	}
 
 	normalizedIP := IP.String()
-	var country *geoip2.Country
+	var country *string
 	if cached, ok := g.cache.Get(normalizedIP); ok {
-		country = cached.(*geoip2.Country)
+		country = cached.(*string)
 	} else {
-		record, err := g.db.Country(IP)
+		var record struct {
+			Country struct {
+				ISOCode *string `maxminddb:"iso_code"`
+			} `maxminddb:"country"`
+		}
+
+		err := g.db.Lookup(IP, &record)
 		if err != nil {
 			return nil, err
 		}
-		country = record
+		country = record.Country.ISOCode
 
 		g.cache.Add(normalizedIP, country)
 	}
@@ -161,19 +167,19 @@ func main() {
 		}
 		normalizedIP := ip.String()
 
-		// Lookup and cache
-		country, err := db.GetCountry(ip)
+		// Lookup
+		country, err := db.GetCountryISOCode(ip)
 		if err != nil {
 			writeResponse(w, http.StatusInternalServerError, StatusError, err)
 			return
 		}
 
 		writeResponse(w, http.StatusOK, StatusOK, struct {
-			IP      string `json:"ip"`
-			Country string `json:"country"`
+			IP      string  `json:"ip"`
+			Country *string `json:"country"`
 		}{
 			IP:      normalizedIP,
-			Country: country.Country.IsoCode,
+			Country: country,
 		})
 	})
 
