@@ -43,7 +43,7 @@ func main() {
 		databaseDir = "./data"
 	}
 	if len(licenseKey) == 0 {
-		log.Fatalf("MaxMind license key is not set for database downloading and update checks")
+		log.Fatalf("GEOSVC_MAXMIND_LICENSE_KEY is not set for database downloading and update checks")
 	}
 
 	// Create database directory
