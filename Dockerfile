@@ -18,7 +18,10 @@ RUN    cd geosvc \
 FROM scratch
 COPY --from=0 /tmp/geosvc/geosvc /geosvc
 
-USER 20000:20000
+# Copy certificates for outgoing HTTPS to work
+COPY --from=0 /etc/ssl /etc/ssl
+
+USER 0:0
 VOLUME /data
 EXPOSE 5000/tcp
 
