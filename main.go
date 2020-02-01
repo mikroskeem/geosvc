@@ -32,8 +32,27 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 
-	db := NewGeoIPDatabase()
-	if err := db.CheckAndPullUpdate(); err != nil {
+	// Grab configuration from the environment
+	listenAddress := os.Getenv("GEOSVC_LISTEN_ADDR")
+	databaseDir := os.Getenv("GEOSVC_DATA_DIR")
+	licenseKey := os.Getenv("GEOSVC_MAXMIND_LICENSE_KEY")
+	if len(listenAddress) == 0 {
+		listenAddress = "0.0.0.0:5000"
+	}
+	if len(databaseDir) == 0 {
+		databaseDir = "./data"
+	}
+	if len(licenseKey) == 0 {
+		log.Fatalf("MaxMind license key is not set for database downloading and update checks")
+	}
+
+	// Create database directory
+	if err := os.MkdirAll(databaseDir, 0755); err != nil {
+		log.Panicf("failed to create %s: %s", databaseDir, err)
+	}
+
+	db := NewGeoIPDatabase(databaseDir)
+	if err := db.SetupDatabase(licenseKey); err != nil {
 		log.Fatalf("failed to set up geoip database: %s", err)
 	}
 	defer func() { _ = db.Close() }()
@@ -47,8 +66,8 @@ func main() {
 				break
 			case <-updateTicker.C:
 				log.Print("checking for GeoIP database updates")
-				if err := db.CheckAndPullUpdate(); err != nil {
-					log.Fatalf("failed pull geoip database update: %s", err)
+				if err := db.SetupDatabase(licenseKey); err != nil {
+					log.Printf("failed pull geoip database update: %s", err)
 				}
 			}
 		}
@@ -96,21 +115,28 @@ func main() {
 
 	srv := &http.Server{
 		Handler:      handler,
-		Addr:         "127.0.0.1:5000",
+		Addr:         listenAddress,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 
+	log.Printf("serving http on http://%s", listenAddress)
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Printf("failed to serve http: %s", err)
+			done <- true
 		}
 	}()
 
-	// Wait for a signal
-	<-sig
+	// Wait for a signal or exit flag
+	select {
+	case <-sig:
+		log.Print("caught signal, exiting")
+	case <-done:
+		// no-op
+	}
+
 	updateTicker.Stop()
-	done <- true
 
 	// It's time to go
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
