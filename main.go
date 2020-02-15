@@ -58,7 +58,7 @@ func main() {
 	defer func() { _ = db.Close() }()
 
 	// Set up automatic database updater
-	updateTicker := time.NewTicker(7 * 24 * time.Hour)
+	updateTicker := time.NewTicker(2 * 24 * time.Hour)
 	go func() {
 		for {
 			select {
