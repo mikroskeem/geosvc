@@ -223,6 +223,7 @@ func (g *GeoIPDatabase) SetupDatabase(licenseKey string) error {
 	}
 
 	g.db = db
+	g.cache.Purge()
 	log.Print("database set up")
 
 	return nil
