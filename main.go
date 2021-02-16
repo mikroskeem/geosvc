@@ -145,4 +145,8 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("failed to shut down http server: %s", err)
 	}
+
+	if err := srv.Close(); err != nil {
+		log.Printf("failed to close http server: %s", err)
+	}
 }
