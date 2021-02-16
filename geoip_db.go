@@ -39,8 +39,8 @@ type GeoIPDatabase struct {
 	mtx   sync.RWMutex
 }
 
-func NewGeoIPDatabase(dataDirectory string) *GeoIPDatabase {
-	ipCache, err := lru.NewARC(1024)
+func NewGeoIPDatabase(dataDirectory string, cacheSize int) *GeoIPDatabase {
+	ipCache, err := lru.NewARC(cacheSize)
 	if err != nil {
 		log.Panic(err)
 	}

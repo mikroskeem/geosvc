@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 )
 
@@ -36,6 +37,8 @@ func main() {
 	listenAddress := os.Getenv("GEOSVC_LISTEN_ADDR")
 	databaseDir := os.Getenv("GEOSVC_DATA_DIR")
 	licenseKey := os.Getenv("GEOSVC_MAXMIND_LICENSE_KEY")
+	cacheSizeStr := os.Getenv("GEOSVC_CACHE_SIZE")
+	cacheSize := 1024
 	if len(listenAddress) == 0 {
 		listenAddress = "0.0.0.0:5000"
 	}
@@ -45,13 +48,20 @@ func main() {
 	if len(licenseKey) == 0 {
 		log.Fatalf("GEOSVC_MAXMIND_LICENSE_KEY is not set for database downloading and update checks")
 	}
+	if len(cacheSizeStr) > 0 {
+		if v, err := strconv.ParseInt(cacheSizeStr, 10, 32); err != nil {
+			log.Fatalf("Failed to parse GEOSVC_CACHE_SIZE: %s", err)
+		} else {
+			cacheSize = int(v)
+		}
+	}
 
 	// Create database directory
 	if err := os.MkdirAll(databaseDir, 0755); err != nil {
 		log.Panicf("failed to create %s: %s", databaseDir, err)
 	}
 
-	db := NewGeoIPDatabase(databaseDir)
+	db := NewGeoIPDatabase(databaseDir, cacheSize)
 	if err := db.SetupDatabase(licenseKey); err != nil {
 		log.Fatalf("failed to set up geoip database: %s", err)
 	}
