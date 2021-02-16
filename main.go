@@ -83,7 +83,8 @@ func main() {
 		}
 	}()
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/country", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodPost {
 			writeResponse(w, http.StatusMethodNotAllowed, StatusError, "method not allowed")
@@ -124,7 +125,7 @@ func main() {
 	})
 
 	srv := &http.Server{
-		Handler:      handler,
+		Handler:      mux,
 		Addr:         listenAddress,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
