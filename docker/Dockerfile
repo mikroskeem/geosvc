@@ -1,4 +1,4 @@
-FROM golang:alpine AS builder
+FROM golang:1.15-alpine AS builder
 
 # Build geosvc
 WORKDIR $GOPATH/src/github.com/mikroskeem/geosvc
