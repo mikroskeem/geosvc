@@ -8,6 +8,10 @@ Note that only GeoLite2 country database is supported at the moment.
 
 ### Setting up
 
+Run `go build .` or `./docker/build_docker.sh` to get either binary or Docker image.
+
+### Getting the license key for database downloading
+
 Get GeoIP license key from [MaxMind site](https://www.maxmind.com/en/accounts/current/license-key), at the time of writing (2021-02-17)
 you can get it for free.
 
@@ -17,6 +21,10 @@ you can get it for free.
 - `GEOSVC_LISTEN_ADDR` - takes `host:port` pair. Default value is `0.0.0.0:5000`
 - `GEOSVC_DATA_DIR` - takes a path where geosvc can store its data. Default value is `./data`
 - `GEOSVC_CACHE_SIZE` - ARC cache size (n >= 1). Default value is `1024`
+
+### Automatic database updates
+
+Currently database update will be performed on startup and every 2 days. There is no way to turn automatic update off at the moment.
 
 ### API endpoints
 
