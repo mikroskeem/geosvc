@@ -7,6 +7,7 @@ RUN CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -ldflags="-w -s" -o /geosvc
 
 # Create geosvc image
 FROM scratch
+COPY ./LICENSE /LICENSE
 COPY --from=builder /etc/ssl /etc/ssl
 COPY --from=builder /geosvc /geosvc
 
