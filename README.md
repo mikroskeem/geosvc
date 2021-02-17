@@ -34,6 +34,17 @@ It does not check Content-Type nor Accepts header on any endpoints, it will try 
 
 #### /api/v1/country
 
+Method: `POST`
+
+* Both IPv6 and IPv4 are supported - IPv6 should be supplied without square brackets.
+* POST body cannot be larger than 2048 bytes.
+* JSON response will always contain object with keys `"status"` and `"data"`. Status can be either `"ok"` or `"error"`
+* In case of error, the response code will never be `200` and `"data"` will be string describing the issue (best effort).
+* In case of success, response code will be 200 and `"data"` will be object containing (normalized) IP address and country ISO code (if found - otherwise it'll be null).
+
+
+Example of the request and response:
+
 ```
 curl -v -H 'Content-Type: application/json' -d '{"ip":"195.50.209.246"}' http://127.0.0.1:5000/api/v1/country
 *   Trying 127.0.0.1:5000...
@@ -54,10 +65,6 @@ curl -v -H 'Content-Type: application/json' -d '{"ip":"195.50.209.246"}' http://
 {"status":"ok","data":{"ip":"195.50.209.246","country":"EE"}}
 * Connection #0 to host 127.0.0.1 left intact
 ```
-
-Country will be null if there is no data for given IP.
-
-Both IPv6 and IPv4 are supported - IPv6 should be supplied without square brackets.
 
 ## License
 
