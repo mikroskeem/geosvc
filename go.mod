@@ -1,6 +1,6 @@
 module github.com/mikroskeem/geosvc
 
-go 1.15
+go 1.16
 
 require (
 	github.com/hashicorp/golang-lru v0.5.4
