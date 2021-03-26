@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -122,6 +123,49 @@ func main() {
 			IP:      normalizedIP,
 			Country: country,
 		})
+	})
+	mux.HandleFunc("/api/v1/bulkcountry", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			writeResponse(w, http.StatusMethodNotAllowed, StatusError, "method not allowed")
+			return
+		}
+
+		var bulkIPRequest struct {
+			IPs []string `json:"ips"`
+		}
+		// TODO: theoretical body size limit
+		if err := json.NewDecoder(r.Body).Decode(&bulkIPRequest); err != nil {
+			writeResponse(w, http.StatusBadRequest, StatusError, err)
+			return
+		}
+
+		var resolvedIPs []struct {
+			IP      net.IP
+			Country *string
+		}
+		for idx, rawIP := range bulkIPRequest.IPs {
+			var ip net.IP = nil
+			if ip = net.ParseIP(rawIP); ip == nil {
+				writeResponse(w, http.StatusBadRequest, StatusError, fmt.Sprintf("failed to parse ip at idx: %d", idx))
+				return
+			}
+			country, err := db.GetCountryISOCode(ip)
+			if err != nil {
+				writeResponse(w, http.StatusBadRequest, StatusError, fmt.Sprintf("failed resolve country for ip '%s': %s", ip.String(), err))
+				return
+			}
+
+			resolvedIPs = append(resolvedIPs, struct {
+				IP      net.IP
+				Country *string
+			}{
+				IP:      ip,
+				Country: country,
+			})
+		}
+
+		writeResponse(w, http.StatusOK, StatusOK, resolvedIPs)
 	})
 
 	srv := &http.Server{
