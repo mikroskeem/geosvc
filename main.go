@@ -17,9 +17,9 @@ const (
 	StatusError = "error"
 )
 
-func writeResponse(w http.ResponseWriter, httpStatus int, status string, data interface{}) error {
+func writeResponse(w http.ResponseWriter, httpStatus int, status string, data interface{}) {
 	w.WriteHeader(httpStatus)
-	return json.NewEncoder(w).Encode(struct {
+	_ = json.NewEncoder(w).Encode(struct {
 		Status string      `json:"status"`
 		Data   interface{} `json:"data"`
 	}{
