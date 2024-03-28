@@ -24,6 +24,9 @@ import (
 const (
 	CountryDBURL    = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=@LICENSE_KEY@&suffix=tar.gz"
 	CountryDBMD5URL = CountryDBURL + ".md5"
+
+	CountryDBName    = "GeoLite2-Country.mmdb"
+	CountryDBMD5Name = CountryDBName + ".md5"
 )
 
 var (
@@ -55,14 +58,14 @@ func (g *GeoIPDatabase) SetupDatabase(licenseKey string) error {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
 
-	databasePath := filepath.Join(g.dir, "GeoLite2-Country.mmdb")
+	databasePath := filepath.Join(g.dir, CountryDBName)
 	builtURL := strings.ReplaceAll(CountryDBURL, "@LICENSE_KEY@", licenseKey)
 	builtMD5URL := strings.ReplaceAll(CountryDBMD5URL, "@LICENSE_KEY@", licenseKey)
 
 	// Determine if update should be downloaded
 	lastDownloadedChecksum := ""
 	shouldDownload := false
-	lastDownloadedChecksumPath := filepath.Join(g.dir, "last-downloaded.md5")
+	lastDownloadedChecksumPath := filepath.Join(g.dir, CountryDBMD5Name)
 	if !fileExists(databasePath) || !fileExists(lastDownloadedChecksumPath) {
 		// Can't be sure, let's download
 		log.Print("either database or its last checksum is not present, will download new database")
