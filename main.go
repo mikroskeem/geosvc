@@ -36,6 +36,8 @@ func main() {
 	// Grab configuration from the environment
 	listenAddress := os.Getenv("GEOSVC_LISTEN_ADDR")
 	databaseDir := os.Getenv("GEOSVC_DATA_DIR")
+	accountIdStr := os.Getenv("GEOSVC_MAXMIND_ACCOUNT_ID")
+	accountId := 0
 	licenseKey := os.Getenv("GEOSVC_MAXMIND_LICENSE_KEY")
 	cacheSizeStr := os.Getenv("GEOSVC_CACHE_SIZE")
 	cacheSize := 1024
@@ -44,6 +46,15 @@ func main() {
 	}
 	if len(databaseDir) == 0 {
 		databaseDir = "./data"
+	}
+	if len(accountIdStr) == 0 {
+		log.Fatalf("GEOSVC_MAXMIND_ACCOUNT_ID is not set for database downloading and update checks")
+	} else {
+		if v, err := strconv.ParseInt(accountIdStr, 10, 32); err != nil {
+			log.Fatalf("Failed to parse GEOSVC_MAXMIND_ACCOUNT_ID: %s", err)
+		} else {
+			accountId = int(v)
+		}
 	}
 	if len(licenseKey) == 0 {
 		log.Fatalf("GEOSVC_MAXMIND_LICENSE_KEY is not set for database downloading and update checks")
@@ -62,7 +73,7 @@ func main() {
 	}
 
 	db := NewGeoIPDatabase(databaseDir, cacheSize)
-	if err := db.SetupDatabase(licenseKey); err != nil {
+	if err := db.SetupDatabase(accountId, licenseKey); err != nil {
 		log.Fatalf("failed to set up geoip database: %s", err)
 	}
 	defer func() { _ = db.Close() }()
@@ -76,7 +87,7 @@ func main() {
 				break
 			case <-updateTicker.C:
 				log.Print("checking for GeoIP database updates")
-				if err := db.SetupDatabase(licenseKey); err != nil {
+				if err := db.SetupDatabase(accountId, licenseKey); err != nil {
 					log.Printf("failed pull geoip database update: %s", err)
 				}
 			}
