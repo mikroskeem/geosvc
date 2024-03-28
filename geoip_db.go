@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -78,7 +77,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
 		log.Print("checking for database updates...")
 
 		// Read last downloaded checksum
-		if d, err := ioutil.ReadFile(lastDownloadedChecksumPath); err != nil {
+		if d, err := os.ReadFile(lastDownloadedChecksumPath); err != nil {
 			return err
 		} else {
 			lastDownloadedChecksum = string(d)
@@ -87,7 +86,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
 		// Download remote
 		if resp, err := http.Get(builtMD5URL); err != nil {
 			return err
-		} else if checksum, err := ioutil.ReadAll(resp.Body); err != nil {
+		} else if checksum, err := io.ReadAll(resp.Body); err != nil {
 			return err
 		} else if normalizedChecksum := strings.TrimSpace(string(checksum)); normalizedChecksum != lastDownloadedChecksum {
 			// Download the database
@@ -136,7 +135,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
 		if len(lastDownloadedChecksum) == 0 {
 			if resp, err := http.Get(builtMD5URL); err != nil {
 				return err
-			} else if checksum, err := ioutil.ReadAll(resp.Body); err != nil {
+			} else if checksum, err := io.ReadAll(resp.Body); err != nil {
 				return err
 			} else {
 				lastDownloadedChecksum = strings.ToLower(strings.TrimSpace(string(checksum)))
@@ -204,7 +203,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
 		}
 
 		// Save checksum
-		if err := ioutil.WriteFile(newChecksumPath, []byte(lastDownloadedChecksum), 0644); err != nil {
+		if err := os.WriteFile(newChecksumPath, []byte(lastDownloadedChecksum), 0644); err != nil {
 			log.Printf("failed to save last downloaded checksum: %s", err)
 		}
 
