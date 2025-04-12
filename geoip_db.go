@@ -16,7 +16,7 @@ import (
 	"strings"
 	"sync"
 
-	lru "github.com/hashicorp/golang-lru"
+	arc "github.com/hashicorp/golang-lru/arc/v2"
 	maxminddb "github.com/oschwald/maxminddb-golang"
 )
 
@@ -39,12 +39,12 @@ var (
 type GeoIPDatabase struct {
 	dir   string
 	db    *maxminddb.Reader
-	cache *lru.ARCCache
+	cache *arc.ARCCache[string, *string]
 	mtx   sync.RWMutex
 }
 
 func NewGeoIPDatabase(dataDirectory string, cacheSize int) *GeoIPDatabase {
-	ipCache, err := lru.NewARC(cacheSize)
+	ipCache, err := arc.NewARC[string, *string](cacheSize)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -248,7 +248,7 @@ func (g *GeoIPDatabase) GetCountryISOCode(IP net.IP) (*string, error) {
 	normalizedIP := IP.String()
 	var country *string
 	if cached, ok := g.cache.Get(normalizedIP); ok {
-		country = cached.(*string)
+		country = cached
 	} else {
 		var record struct {
 			Country struct {
