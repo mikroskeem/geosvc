@@ -75,11 +75,7 @@ func NewGeoIPDatabase(dataDirectory string, cacheSize int, edition string) *GeoI
 	}
 }
 
-func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
-	if accountId <= 0 {
-		return errors.New("invalid account id")
-	}
-
+func (g *GeoIPDatabase) SetupDatabase(accountId string, licenseKey string) error {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
 

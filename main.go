@@ -73,8 +73,7 @@ func main() {
 	// Grab configuration from the environment
 	listenAddress := os.Getenv("GEOSVC_LISTEN_ADDR")
 	databaseDir := os.Getenv("GEOSVC_DATA_DIR")
-	accountIdStr := os.Getenv("GEOSVC_MAXMIND_ACCOUNT_ID")
-	accountId := 0
+	accountId := os.Getenv("GEOSVC_MAXMIND_ACCOUNT_ID")
 	licenseKey := os.Getenv("GEOSVC_MAXMIND_LICENSE_KEY")
 	cacheSizeStr := os.Getenv("GEOSVC_CACHE_SIZE")
 	cacheSize := 1024
@@ -88,14 +87,8 @@ func main() {
 	if len(databaseDir) == 0 {
 		databaseDir = "./data"
 	}
-	if len(accountIdStr) == 0 {
+	if len(accountId) == 0 {
 		log.Fatalf("GEOSVC_MAXMIND_ACCOUNT_ID is not set for database downloading and update checks")
-	} else {
-		if v, err := strconv.ParseInt(accountIdStr, 10, 32); err != nil {
-			log.Fatalf("Failed to parse GEOSVC_MAXMIND_ACCOUNT_ID: %s", err)
-		} else {
-			accountId = int(v)
-		}
 	}
 	if len(licenseKey) == 0 {
 		log.Fatalf("GEOSVC_MAXMIND_LICENSE_KEY is not set for database downloading and update checks")
