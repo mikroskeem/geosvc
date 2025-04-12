@@ -21,11 +21,13 @@ import (
 )
 
 const (
-	CountryDBURL    = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=@LICENSE_KEY@&suffix=tar.gz"
-	CountryDBMD5URL = CountryDBURL + ".md5"
+	DatabaseEdition = "GeoLite2-Country"
 
-	CountryDBName    = "GeoLite2-Country.mmdb"
-	CountryDBMD5Name = CountryDBName + ".md5"
+	DatabaseURL    = "https://download.maxmind.com/app/geoip_download?edition_id=@EDITION_ID@&license_key=@LICENSE_KEY@&suffix=tar.gz"
+	DatabaseMD5URL = DatabaseURL + ".md5"
+
+	DatabaseFileName    = DatabaseEdition + ".mmdb"
+	DatabaseMD5FileName = DatabaseFileName + ".md5"
 )
 
 var (
@@ -61,14 +63,14 @@ func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
 
-	databasePath := filepath.Join(g.dir, CountryDBName)
-	builtURL := strings.ReplaceAll(CountryDBURL, "@LICENSE_KEY@", licenseKey)
-	builtMD5URL := strings.ReplaceAll(CountryDBMD5URL, "@LICENSE_KEY@", licenseKey)
+	databasePath := filepath.Join(g.dir, DatabaseFileName)
+	builtURL := strings.ReplaceAll(strings.ReplaceAll(DatabaseURL, "@LICENSE_KEY@", licenseKey), "@EDITION_ID@", DatabaseEdition)
+	builtMD5URL := strings.ReplaceAll(strings.ReplaceAll(DatabaseMD5URL, "@LICENSE_KEY@", licenseKey), "@EDITION_ID@", DatabaseEdition)
 
 	// Determine if update should be downloaded
 	lastDownloadedChecksum := ""
 	shouldDownload := false
-	lastDownloadedChecksumPath := filepath.Join(g.dir, CountryDBMD5Name)
+	lastDownloadedChecksumPath := filepath.Join(g.dir, DatabaseMD5FileName)
 	if !fileExists(databasePath) || !fileExists(lastDownloadedChecksumPath) {
 		// Can't be sure, let's download
 		log.Print("either database or its last checksum is not present, will download new database")
@@ -106,9 +108,9 @@ func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
 	if shouldDownload {
 		log.Print("downloading new database")
 
-		databaseArchivePath := filepath.Join(g.dir, "GeoLite2-Country.tar.gz")
-		newDatabasePath := filepath.Join(g.dir, "GeoLite2-Country.mmdb.new")
-		newChecksumPath := filepath.Join(g.dir, "last-downloaded.md5.new")
+		databaseArchivePath := filepath.Join(g.dir, DatabaseEdition+".tar.gz")
+		newDatabasePath := filepath.Join(g.dir, DatabaseEdition+".mmdb.new")
+		newChecksumPath := filepath.Join(g.dir, DatabaseEdition+"-last-downloaded.md5.new")
 
 		// Download the database archive
 		downloadedDatabaseArchiveChecksum := ""
@@ -171,7 +173,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
 				}
 
 				baseName := path.Base(h.Name)
-				if baseName != "GeoLite2-Country.mmdb" {
+				if baseName != DatabaseFileName {
 					continue
 				}
 				// Database file exists, also copy it over
