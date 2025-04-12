@@ -138,6 +138,9 @@ func main() {
 		}
 	}()
 
+	// TODO: current /api/v1/*country endpoints return also details about the city
+	// Re-do the API endpoints so that they'd have more generic names
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/country", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
