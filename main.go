@@ -112,7 +112,7 @@ func main() {
 		var ipRequest struct {
 			IP string `json:"ip"`
 		}
-		body := http.MaxBytesReader(w, r.Body, 2048)
+		body := http.MaxBytesReader(w, r.Body, 2<<6)
 		if err := json.NewDecoder(body).Decode(&ipRequest); err != nil {
 			writeResponse(w, http.StatusBadRequest, StatusError, err)
 			return
