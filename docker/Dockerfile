@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.22 AS builder
+FROM docker.io/library/golang:1.24 AS builder
 
 # Build geosvc
 WORKDIR $GOPATH/src/github.com/mikroskeem/geosvc
