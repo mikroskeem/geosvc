@@ -164,7 +164,7 @@ func main() {
 			return
 		}
 
-		var resolvedIPs []resolvedIP
+		resolvedIPs := make([]resolvedIP, 0, len(bulkIPRequest.IPs))
 
 		for idx, rawIP := range bulkIPRequest.IPs {
 			var ip net.IP = nil
