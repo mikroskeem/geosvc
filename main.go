@@ -80,6 +80,7 @@ func main() {
 	cacheSize := 1024
 	maxBulkCountryRequestSizeStr := os.Getenv("GEOSVC_MAX_BULK_COUNTRY_REQUEST_SIZE")
 	maxBulkCountryRequestSize := int64(2) << 14
+	dbEdition := "GeoLite2-Country"
 
 	if len(listenAddress) == 0 {
 		listenAddress = "0.0.0.0:5000"
@@ -113,13 +114,16 @@ func main() {
 			maxBulkCountryRequestSize = v
 		}
 	}
+	if v := os.Getenv("GEOSVC_DB_EDITION"); len(v) > 0 {
+		dbEdition = v
+	}
 
 	// Create database directory
 	if err := os.MkdirAll(databaseDir, 0755); err != nil {
 		log.Panicf("failed to create %s: %s", databaseDir, err)
 	}
 
-	db := NewGeoIPDatabase(databaseDir, cacheSize)
+	db := NewGeoIPDatabase(databaseDir, cacheSize, dbEdition)
 	if err := db.SetupDatabase(accountId, licenseKey); err != nil {
 		log.Fatalf("failed to set up geoip database: %s", err)
 	}
