@@ -47,6 +47,9 @@ func main() {
 	licenseKey := os.Getenv("GEOSVC_MAXMIND_LICENSE_KEY")
 	cacheSizeStr := os.Getenv("GEOSVC_CACHE_SIZE")
 	cacheSize := 1024
+	maxBulkCountryRequestSizeStr := os.Getenv("GEOSVC_MAX_BULK_COUNTRY_REQUEST_SIZE")
+	maxBulkCountryRequestSize := int64(2) << 14
+
 	if len(listenAddress) == 0 {
 		listenAddress = "0.0.0.0:5000"
 	}
@@ -70,6 +73,13 @@ func main() {
 			log.Fatalf("Failed to parse GEOSVC_CACHE_SIZE: %s", err)
 		} else {
 			cacheSize = int(v)
+		}
+	}
+	if len(maxBulkCountryRequestSizeStr) > 0 {
+		if v, err := strconv.ParseInt(maxBulkCountryRequestSizeStr, 10, 64); err != nil {
+			log.Fatalf("Failed to parse GEOSVC_MAX_BULK_COUNTRY_REQUEST_SIZE: %s", err)
+		} else {
+			maxBulkCountryRequestSize = v
 		}
 	}
 
@@ -148,7 +158,7 @@ func main() {
 			IPs []string `json:"ips"`
 		}
 
-		body := http.MaxBytesReader(w, r.Body, 2<<14)
+		body := http.MaxBytesReader(w, r.Body, int64(maxBulkCountryRequestSize))
 		if err := json.NewDecoder(body).Decode(&bulkIPRequest); err != nil {
 			writeResponse(w, http.StatusBadRequest, StatusError, err)
 			return
