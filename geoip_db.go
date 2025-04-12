@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,7 +17,7 @@ import (
 	"sync"
 
 	arc "github.com/hashicorp/golang-lru/arc/v2"
-	maxminddb "github.com/oschwald/maxminddb-golang"
+	maxminddb "github.com/oschwald/maxminddb-golang/v2"
 )
 
 const (
@@ -36,15 +36,36 @@ var (
 	ErrorDatabaseNotFoundInArchive = errors.New("GeoIP database not found in downloaded archive")
 )
 
+type GeoIPRecord struct {
+	Country struct {
+		ISOCode *string `maxminddb:"iso_code"`
+	} `maxminddb:"country"`
+
+	// City information - can be missing when City database is not used
+	City *struct {
+		Names struct {
+			En string `maxminddb:"en"`
+		} `maxminddb:"names"`
+	} `maxminddb:"city"`
+
+	// Location information - can be missing when City database is not used
+	Location *struct {
+		AccuracyRadius uint16  `maxminddb:"accuracy_radius"`
+		Latitude       float64 `maxminddb:"latitude"`
+		Longitude      float64 `maxminddb:"longitude"`
+		Timezone       string  `maxminddb:"time_zone"`
+	} `maxminddb:"location"`
+}
+
 type GeoIPDatabase struct {
 	dir   string
 	db    *maxminddb.Reader
-	cache *arc.ARCCache[string, *string]
+	cache *arc.ARCCache[netip.Addr, *GeoIPRecord]
 	mtx   sync.RWMutex
 }
 
 func NewGeoIPDatabase(dataDirectory string, cacheSize int) *GeoIPDatabase {
-	ipCache, err := arc.NewARC[string, *string](cacheSize)
+	ipCache, err := arc.NewARC[netip.Addr, *GeoIPRecord](cacheSize)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -237,7 +258,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId int, licenseKey string) error {
 	return nil
 }
 
-func (g *GeoIPDatabase) GetCountryISOCode(IP net.IP) (*string, error) {
+func (g *GeoIPDatabase) GetRecord(ip netip.Addr) (*GeoIPRecord, error) {
 	g.mtx.RLock()
 	defer g.mtx.RUnlock()
 
@@ -245,27 +266,18 @@ func (g *GeoIPDatabase) GetCountryISOCode(IP net.IP) (*string, error) {
 		return nil, ErrorDatabaseNotOpen
 	}
 
-	normalizedIP := IP.String()
-	var country *string
-	if cached, ok := g.cache.Get(normalizedIP); ok {
-		country = cached
-	} else {
-		var record struct {
-			Country struct {
-				ISOCode *string `maxminddb:"iso_code"`
-			} `maxminddb:"country"`
-		}
-
-		err := g.db.Lookup(IP, &record)
-		if err != nil {
-			return nil, err
-		}
-		country = record.Country.ISOCode
-
-		g.cache.Add(normalizedIP, country)
+	if cached, ok := g.cache.Get(ip); ok {
+		return cached, nil
 	}
 
-	return country, nil
+	var record GeoIPRecord
+	err := g.db.Lookup(ip).Decode(&record)
+	if err != nil {
+		return nil, err
+	}
+
+	g.cache.Add(ip, &record)
+	return &record, nil
 }
 
 func (g *GeoIPDatabase) Close() error {

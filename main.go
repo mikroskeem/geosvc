@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
 	"strconv"
@@ -18,16 +18,47 @@ const (
 	StatusError = "error"
 )
 
-type resolvedIP struct {
-	IP      string  `json:"ip"`
-	Country *string `json:"country"`
+type resolvedIPLocation struct {
+	City      *string  `json:"city"`
+	Accuracy  *uint16  `json:"accuracy"`
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+	Timezone  *string  `json:"timezone"`
 }
 
-func writeResponse(w http.ResponseWriter, httpStatus int, status string, data interface{}) {
+type resolvedIP struct {
+	IP       *string             `json:"ip"`
+	Country  *string             `json:"country"`
+	Location *resolvedIPLocation `json:"location,omitempty"`
+}
+
+func populateLocation(record *GeoIPRecord) *resolvedIPLocation {
+	if record.Location == nil || record.City == nil {
+		return nil
+	}
+
+	return &resolvedIPLocation{
+		City:      &record.City.Names.En,
+		Accuracy:  &record.Location.AccuracyRadius,
+		Latitude:  &record.Location.Latitude,
+		Longitude: &record.Location.Longitude,
+		Timezone:  &record.Location.Timezone,
+	}
+}
+
+func newResolvedIP(ip *string, record *GeoIPRecord) *resolvedIP {
+	return &resolvedIP{
+		IP:       ip,
+		Country:  record.Country.ISOCode,
+		Location: populateLocation(record),
+	}
+}
+
+func writeResponse(w http.ResponseWriter, httpStatus int, status string, data any) {
 	w.WriteHeader(httpStatus)
 	_ = json.NewEncoder(w).Encode(struct {
-		Status string      `json:"status"`
-		Data   interface{} `json:"data"`
+		Status string `json:"status"`
+		Data   any    `json:"data"`
 	}{
 		Status: status,
 		Data:   data,
@@ -128,24 +159,20 @@ func main() {
 			return
 		}
 
-		var ip net.IP
-		if ip = net.ParseIP(ipRequest.IP); ip == nil {
+		ip, err := netip.ParseAddr(ipRequest.IP)
+		if err != nil {
 			writeResponse(w, http.StatusBadRequest, StatusError, "failed to parse ip")
 			return
 		}
-		normalizedIP := ip.String()
 
 		// Lookup
-		country, err := db.GetCountryISOCode(ip)
+		record, err := db.GetRecord(ip)
 		if err != nil {
 			writeResponse(w, http.StatusInternalServerError, StatusError, err)
 			return
 		}
 
-		writeResponse(w, http.StatusOK, StatusOK, resolvedIP{
-			IP:      normalizedIP,
-			Country: country,
-		})
+		writeResponse(w, http.StatusOK, StatusOK, newResolvedIP(&ipRequest.IP, record))
 	})
 	mux.HandleFunc("/api/v1/bulkcountry", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -167,21 +194,19 @@ func main() {
 		resolvedIPs := make([]resolvedIP, 0, len(bulkIPRequest.IPs))
 
 		for idx, rawIP := range bulkIPRequest.IPs {
-			var ip net.IP = nil
-			if ip = net.ParseIP(rawIP); ip == nil {
+			ip, err := netip.ParseAddr(rawIP)
+			if err != nil {
 				writeResponse(w, http.StatusBadRequest, StatusError, fmt.Sprintf("failed to parse ip at idx: %d", idx))
 				return
 			}
-			country, err := db.GetCountryISOCode(ip)
+
+			record, err := db.GetRecord(ip)
 			if err != nil {
 				writeResponse(w, http.StatusBadRequest, StatusError, fmt.Sprintf("failed resolve country for ip '%s': %s", ip.String(), err))
 				return
 			}
 
-			resolvedIPs = append(resolvedIPs, resolvedIP{
-				IP:      ip.String(),
-				Country: country,
-			})
+			resolvedIPs = append(resolvedIPs, *newResolvedIP(&rawIP, record))
 		}
 
 		writeResponse(w, http.StatusOK, StatusOK, resolvedIPs)
