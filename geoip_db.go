@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	DatabaseURL    = "https://download.maxmind.com/app/geoip_download?edition_id=@EDITION_ID@&license_key=@LICENSE_KEY@&suffix=tar.gz"
-	DatabaseMD5URL = DatabaseURL + ".md5"
+	DatabaseURL    = "https://download.maxmind.com/geoip/databases/@EDITION_ID@/download?suffix=tar.gz"
+	DatabaseMD5URL = "https://download.maxmind.com/geoip/databases/@EDITION_ID@/download?suffix=tar.gz.md5"
 )
 
 var (
@@ -80,8 +80,18 @@ func (g *GeoIPDatabase) SetupDatabase(accountId string, licenseKey string) error
 	defer g.mtx.Unlock()
 
 	databasePath := filepath.Join(g.dir, g.edition+".mmdb")
-	builtURL := strings.ReplaceAll(strings.ReplaceAll(DatabaseURL, "@LICENSE_KEY@", licenseKey), "@EDITION_ID@", g.edition)
-	builtMD5URL := strings.ReplaceAll(strings.ReplaceAll(DatabaseMD5URL, "@LICENSE_KEY@", licenseKey), "@EDITION_ID@", g.edition)
+	builtURL := strings.ReplaceAll(DatabaseURL, "@EDITION_ID@", g.edition)
+	builtMD5URL := strings.ReplaceAll(DatabaseMD5URL, "@EDITION_ID@", g.edition)
+
+	httpClient := &http.Client{}
+	authGet := func(url string) (*http.Response, error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.SetBasicAuth(accountId, licenseKey)
+		return httpClient.Do(req)
+	}
 
 	// Determine if update should be downloaded
 	lastDownloadedChecksum := ""
@@ -102,7 +112,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId string, licenseKey string) error
 		}
 
 		// Download remote
-		if resp, err := http.Get(builtMD5URL); err != nil {
+		if resp, err := authGet(builtMD5URL); err != nil {
 			return err
 		} else if checksum, err := io.ReadAll(resp.Body); err != nil {
 			return err
@@ -130,7 +140,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId string, licenseKey string) error
 
 		// Download the database archive
 		downloadedDatabaseArchiveChecksum := ""
-		if r, err := http.Get(builtURL); err != nil {
+		if r, err := authGet(builtURL); err != nil {
 			return err
 		} else {
 			if f, err := os.Create(databaseArchivePath); err != nil {
@@ -151,7 +161,7 @@ func (g *GeoIPDatabase) SetupDatabase(accountId string, licenseKey string) error
 
 		// Also download checksum if it's not downloaded yet
 		if len(lastDownloadedChecksum) == 0 {
-			if resp, err := http.Get(builtMD5URL); err != nil {
+			if resp, err := authGet(builtMD5URL); err != nil {
 				return err
 			} else if checksum, err := io.ReadAll(resp.Body); err != nil {
 				return err
